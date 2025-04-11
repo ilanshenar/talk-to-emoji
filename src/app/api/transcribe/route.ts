@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { TranscribeClient, StartTranscriptionJobCommand } from '@aws-sdk/client-transcribe';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const transcribeClient = new TranscribeClient({
   region: process.env.AWS_REGION || 'us-east-1',

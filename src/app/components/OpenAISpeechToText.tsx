@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 
 interface Message {
   text: string;
   emojis?: string;
   isUser: boolean;
   isRevealed?: boolean;
+  isProfanity?: boolean;
 }
 
 export default function OpenAISpeechToText() {
