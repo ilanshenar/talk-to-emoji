@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { TranscribeClient, StartTranscriptionJobCommand } from '@aws-sdk/client-transcribe';
+import { TranscribeClient, StartTranscriptionJobCommand, LanguageCode } from '@aws-sdk/client-transcribe';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 const transcribeClient = new TranscribeClient({
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     const putCommand = new PutObjectCommand({
       Bucket: bucketName,
       Key: filename,
-      Body: await audioFile.arrayBuffer(),
+      Body: new Uint8Array(await audioFile.arrayBuffer()),
       ContentType: 'audio/wav',
     });
 
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     // Start the transcription job with the selected language
     const transcriptionCommand = new StartTranscriptionJobCommand({
       TranscriptionJobName: `transcription-${Date.now()}`,
-      LanguageCode: language,
+      LanguageCode: language as LanguageCode,
       MediaFormat: 'wav',
       Media: {
         MediaFileUri: `s3://${bucketName}/${filename}`,
