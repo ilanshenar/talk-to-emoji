@@ -197,7 +197,6 @@ export default function OpenAISpeechToText() {
         toggleReveal(index);
       }
     },
-    preventDefaultTouchmoveEvent: true,
     trackMouse: false,
   });
 
