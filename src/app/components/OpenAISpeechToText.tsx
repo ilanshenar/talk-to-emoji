@@ -15,13 +15,15 @@ export default function OpenAISpeechToText() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [status, setStatus] = useState<string>("");
-  const [selectedLanguage, setSelectedLanguage] = useState<string>("en");
   const [isMobile, setIsMobile] = useState(false);
   const [showFab, setShowFab] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Default language since we removed the language selector
+  const selectedLanguage = "en";
 
   // Check if device is mobile
   useEffect(() => {
