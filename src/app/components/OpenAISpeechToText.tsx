@@ -205,9 +205,12 @@ export default function OpenAISpeechToText() {
       <div
         {...swipeHandlers}
         className="space-y-4 w-full max-h-[70vh] overflow-y-auto px-2 pb-4 hide-scrollbar"
+        role="log"
+        aria-live="polite"
+        aria-label="Speech to emoji conversion results"
       >
         {messages.map((message, index) => (
-          <div
+          <article
             key={index}
             data-message-index={index}
             className={`p-4 rounded-lg relative ${
@@ -215,26 +218,43 @@ export default function OpenAISpeechToText() {
                 ? "bg-blue-100 ml-0 md:ml-8"
                 : "bg-gray-100 mr-0 md:mr-8"
             }`}
+            role="article"
+            aria-labelledby={`message-${index}`}
           >
             <button
               onClick={() => removeMessage(index)}
               className="absolute top-2 right-2 text-gray-500 hover:text-red-500 transition-colors p-2"
-              aria-label="Remove message"
+              aria-label={`Remove message ${index + 1}`}
+              title="Remove this message"
             >
               ✕
             </button>
             {message.emojis && (
               <div className="relative">
-                <div className="text-4xl mb-4 text-center text-gray-800 select-none">
+                <div
+                  className="text-4xl mb-4 text-center text-gray-800 select-none"
+                  aria-label={`Emoji representation: ${message.emojis}`}
+                  role="img"
+                >
                   {message.emojis}
                 </div>
                 <button
                   onClick={() => copyEmojis(message.emojis!, index)}
                   className="absolute top-0 right-8 p-2 text-gray-500 hover:text-blue-600 transition-colors"
-                  aria-label="Copy emojis"
+                  aria-label={`Copy emojis: ${message.emojis}`}
+                  title={
+                    copiedIndex === index
+                      ? "Copied!"
+                      : "Copy emojis to clipboard"
+                  }
                 >
                   {copiedIndex === index ? (
-                    <span className="text-green-500">✓</span>
+                    <span
+                      className="text-green-500"
+                      aria-label="Copied successfully"
+                    >
+                      ✓
+                    </span>
                   ) : (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -246,6 +266,7 @@ export default function OpenAISpeechToText() {
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
+                      aria-hidden="true"
                     >
                       <rect
                         x="9"
@@ -267,31 +288,43 @@ export default function OpenAISpeechToText() {
                   ? "opacity-100 max-h-96"
                   : "opacity-0 max-h-0 overflow-hidden"
               }`}
+              id={`message-${index}`}
             >
-              <p className="text-gray-800">{message.text}</p>
+              <p className="text-gray-800" aria-label="Original spoken text">
+                {message.text}
+              </p>
             </div>
             <button
               onClick={() => toggleReveal(index)}
               className="mt-2 text-sm text-blue-600 hover:text-blue-800 p-2"
+              aria-expanded={message.isRevealed}
+              aria-controls={`message-${index}`}
             >
               {message.isRevealed ? "Hide Text" : "Reveal Text"}
             </button>
             {isMobile && (
-              <div className="text-xs text-gray-400 mt-2 text-center">
+              <div
+                className="text-xs text-gray-400 mt-2 text-center"
+                role="note"
+              >
                 Swipe left to delete • Swipe up to reveal/hide
               </div>
             )}
-          </div>
+          </article>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
       <div className="flex flex-col items-center gap-4 w-full px-2 sticky bottom-0 pt-2">
-        <div className="text-gray-600 text-sm">
+        <div className="text-gray-600 text-sm" role="status" aria-live="polite">
           {status && `Status: ${status}`}
         </div>
         {status === "processing" && (
-          <div className="flex space-x-2 mb-2">
+          <div
+            className="flex space-x-2 mb-2"
+            role="img"
+            aria-label="Processing animation"
+          >
             {["🤔", "🎤", "🎧", "🎯", "🎨"].map((emoji, index) => (
               <div
                 key={index}
@@ -300,6 +333,7 @@ export default function OpenAISpeechToText() {
                   animationDelay: `${index * 0.2}s`,
                   animationDuration: "1s",
                 }}
+                aria-hidden="true"
               >
                 {emoji}
               </div>
@@ -314,8 +348,15 @@ export default function OpenAISpeechToText() {
                 ? "bg-red-500 hover:bg-red-600"
                 : "bg-blue-500 hover:bg-blue-600"
             } text-white flex items-center justify-center gap-2`}
+            aria-label={
+              isRecording ? "Stop recording speech" : "Start recording speech"
+            }
+            aria-pressed={isRecording}
           >
-            <span className={isRecording ? "animate-pulse" : ""}>
+            <span
+              className={isRecording ? "animate-pulse" : ""}
+              aria-hidden="true"
+            >
               {isRecording ? "🔴" : "🎤"}
             </span>
             {isRecording ? "Stop Recording" : "Start Recording"}
@@ -329,9 +370,14 @@ export default function OpenAISpeechToText() {
           className={`fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center ${
             isRecording ? "bg-red-500" : "bg-blue-500"
           } text-white z-50 animate-pulse-slow`}
-          aria-label={isRecording ? "Stop recording" : "Start recording"}
+          aria-label={
+            isRecording ? "Stop recording speech" : "Start recording speech"
+          }
+          title={isRecording ? "Stop recording" : "Start recording"}
         >
-          <span className="text-2xl">{isRecording ? "🔴" : "🎤"}</span>
+          <span className="text-2xl" aria-hidden="true">
+            {isRecording ? "🔴" : "🎤"}
+          </span>
         </button>
       )}
     </div>
