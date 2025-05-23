@@ -78,7 +78,7 @@ export const metadata: Metadata = {
       "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧙</text></svg>",
   },
   verification: {
-    google: "Q2mMlqICKHS-xRzih3djEc1coU3dL6eMA6K4D",
+    google: "Q2mMlqlCKHS-xRzih3djEc1coU3dL6eMA6K4DHw-dkc",
   },
   other: {
     "mobile-web-app-capable": "yes",
