@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -140,7 +141,24 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
       </head>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        {children}
+        <Toaster
+          theme="dark"
+          className="toaster group"
+          toastOptions={{
+            classNames: {
+              toast:
+                "group toast group-[.toaster]:bg-purple-800/90 group-[.toaster]:text-purple-100 group-[.toaster]:border-purple-600/50 group-[.toaster]:shadow-lg",
+              description: "group-[.toast]:text-purple-300",
+              actionButton:
+                "group-[.toast]:bg-purple-600 group-[.toast]:text-purple-100",
+              cancelButton:
+                "group-[.toast]:bg-slate-600 group-[.toast]:text-slate-100",
+            },
+          }}
+        />
+      </body>
     </html>
   );
 }
