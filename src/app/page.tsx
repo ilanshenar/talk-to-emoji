@@ -187,11 +187,19 @@ export default function Home() {
       </motion.div>
 
       <motion.footer
-        className="mt-16 text-center text-purple-400 text-sm"
+        className="mt-16 text-center text-purple-400 text-sm space-y-2"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1 }}
       >
+        <div className="flex justify-center space-x-6 mb-2">
+          <a href="/privacy" className="hover:text-purple-200 underline">
+            Privacy Policy
+          </a>
+          <a href="/terms" className="hover:text-purple-200 underline">
+            Terms of Service
+          </a>
+        </div>
         <p>&copy; 2024 Mojimajic. Transform your voice into emoji magic.</p>
       </motion.footer>
     </main>

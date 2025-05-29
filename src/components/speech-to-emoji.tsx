@@ -6,7 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Mic, MicOff, Copy, X, Eye, EyeOff } from "lucide-react";
+import {
+  Mic,
+  MicOff,
+  Copy,
+  X,
+  Eye,
+  EyeOff,
+  Type,
+  Send,
+  RotateCcw,
+  Shield,
+} from "lucide-react";
+import ConsentDialog, { useConsent } from "@/components/consent-dialog";
 
 interface Message {
   text: string;
@@ -23,10 +35,22 @@ export default function SpeechToEmoji() {
   const [isMobile, setIsMobile] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [previousMessageCount, setPreviousMessageCount] = useState(0);
+  const [inputMode, setInputMode] = useState<"voice" | "text">("text");
+  const [textInput, setTextInput] = useState("");
+  const [isProcessingText, setIsProcessingText] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Consent management
+  const {
+    consentStatus,
+    showDialog,
+    handleAccept,
+    handleDecline,
+    resetConsent,
+  } = useConsent();
 
   // Default language since we removed the language selector
   const selectedLanguage = "en";
@@ -61,6 +85,14 @@ export default function SpeechToEmoji() {
     }
   }, [copiedIndex]);
 
+  // Handle consent change
+  useEffect(() => {
+    if (consentStatus === "declined" && inputMode === "voice") {
+      setInputMode("text");
+      toast.info("Voice recording disabled. You can still use text input!");
+    }
+  }, [consentStatus, inputMode]);
+
   const toggleReveal = (index: number) => {
     setMessages((prev) =>
       prev.map((msg, i) =>
@@ -85,7 +117,72 @@ export default function SpeechToEmoji() {
     }
   };
 
+  // New function to convert text input to emojis
+  const convertTextToEmojis = async (text: string) => {
+    if (!text.trim()) {
+      toast.error("Please enter some text");
+      return;
+    }
+
+    try {
+      setIsProcessingText(true);
+      setStatus("processing");
+
+      const emojiResponse = await fetch("/api/openai/emojis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: text.trim() }),
+      });
+
+      if (!emojiResponse.ok) {
+        throw new Error("Emoji conversion failed");
+      }
+
+      const emojiData = await emojiResponse.json();
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          text: text.trim(),
+          emojis: emojiData.emojis,
+          isUser: true,
+          isRevealed: false,
+        },
+      ]);
+
+      setTextInput("");
+      toast.success("Text converted to emojis!");
+      setStatus("completed");
+    } catch (error) {
+      console.error("Error converting text to emojis:", error);
+      toast.error("Failed to convert text to emojis");
+      setStatus("failed");
+    } finally {
+      setIsProcessingText(false);
+    }
+  };
+
+  const handleTextSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    convertTextToEmojis(textInput);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      convertTextToEmojis(textInput);
+    }
+  };
+
   const startRecording = async () => {
+    // Check consent before accessing microphone
+    if (consentStatus !== "accepted") {
+      toast.error("Please accept privacy terms to use voice recording");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -358,66 +455,256 @@ export default function SpeechToEmoji() {
           </motion.div>
         )}
 
-        <div className="flex justify-center w-full">
-          <Button
-            onClick={isRecording ? stopRecording : startRecording}
-            size="lg"
-            className={`px-8 py-4 text-lg font-semibold ${
-              isRecording
-                ? "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
-                : "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-            } shadow-lg transition-all`}
-          >
-            <motion.div
-              animate={isRecording ? { scale: [1, 1.1, 1] } : {}}
-              transition={{ duration: 1, repeat: Infinity }}
-              className="mr-2"
-            >
-              {isRecording ? (
-                <MicOff className="h-5 w-5" />
+        {/* Mode Switcher */}
+        <Card className="w-full max-w-md bg-purple-800/30 backdrop-blur-sm border-purple-600/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Button
+                variant={inputMode === "voice" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setInputMode("voice")}
+                className={`${
+                  inputMode === "voice"
+                    ? "bg-purple-600 hover:bg-purple-700"
+                    : "text-purple-300 hover:text-purple-100"
+                }`}
+              >
+                <Mic className="h-4 w-4 mr-2" />
+                Voice
+              </Button>
+              <Button
+                variant={inputMode === "text" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setInputMode("text")}
+                className={`${
+                  inputMode === "text"
+                    ? "bg-purple-600 hover:bg-purple-700"
+                    : "text-purple-300 hover:text-purple-100"
+                }`}
+              >
+                <Type className="h-4 w-4 mr-2" />
+                Text
+              </Button>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {inputMode === "voice" ? (
+                <motion.div
+                  key="voice"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex justify-center"
+                >
+                  <Button
+                    onClick={isRecording ? stopRecording : startRecording}
+                    size="lg"
+                    disabled={isProcessingText}
+                    className={`px-8 py-4 text-lg font-semibold ${
+                      isRecording
+                        ? "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                        : "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    } shadow-lg transition-all`}
+                  >
+                    <motion.div
+                      animate={isRecording ? { scale: [1, 1.1, 1] } : {}}
+                      transition={{ duration: 1, repeat: Infinity }}
+                      className="mr-2"
+                    >
+                      {isRecording ? (
+                        <MicOff className="h-5 w-5" />
+                      ) : (
+                        <Mic className="h-5 w-5" />
+                      )}
+                    </motion.div>
+                    {isRecording ? "Stop Recording" : "Start Recording"}
+                  </Button>
+                </motion.div>
               ) : (
-                <Mic className="h-5 w-5" />
+                <motion.div
+                  key="text"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <form onSubmit={handleTextSubmit} className="space-y-3">
+                    <div className="relative">
+                      <textarea
+                        value={textInput}
+                        onChange={(e) => setTextInput(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        placeholder="Type your message here..."
+                        disabled={isProcessingText || isRecording}
+                        className="w-full p-3 pr-12 rounded-lg bg-purple-900/40 border border-purple-600/50 text-purple-100 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                        rows={3}
+                      />
+                      {textInput && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setTextInput("")}
+                          className="absolute top-2 right-2 text-purple-400 hover:text-purple-200 h-8 w-8 p-0"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <Button
+                      type="submit"
+                      size="lg"
+                      disabled={
+                        !textInput.trim() || isProcessingText || isRecording
+                      }
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg transition-all"
+                    >
+                      {isProcessingText ? (
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{
+                            duration: 1,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
+                          className="mr-2"
+                        >
+                          <RotateCcw className="h-5 w-5" />
+                        </motion.div>
+                      ) : (
+                        <Send className="h-5 w-5 mr-2" />
+                      )}
+                      {isProcessingText ? "Converting..." : "Convert to Emojis"}
+                    </Button>
+                  </form>
+                  <p className="text-xs text-purple-400 mt-2 text-center">
+                    Press Enter to convert • Shift+Enter for new line
+                  </p>
+                </motion.div>
               )}
-            </motion.div>
-            {isRecording ? "Stop Recording" : "Start Recording"}
-          </Button>
-        </div>
+            </AnimatePresence>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Mobile FAB */}
       <AnimatePresence>
         {isMobile && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            className="fixed bottom-6 right-6 z-50"
-          >
-            <Button
-              onClick={isRecording ? stopRecording : startRecording}
-              size="icon"
-              className={`w-14 h-14 rounded-full shadow-lg ${
-                isRecording
-                  ? "bg-gradient-to-r from-red-600 to-red-700"
-                  : "bg-gradient-to-r from-purple-600 to-blue-600"
-              }`}
+          <>
+            {/* Mode Toggle FAB */}
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              className="fixed bottom-6 left-6 z-50"
             >
-              <motion.div
-                animate={
-                  isRecording ? { scale: [1, 1.2, 1] } : { scale: [1, 1.05, 1] }
+              <Button
+                onClick={() =>
+                  setInputMode(inputMode === "voice" ? "text" : "voice")
                 }
-                transition={{ duration: 2, repeat: Infinity }}
+                size="icon"
+                variant="secondary"
+                className="w-12 h-12 rounded-full shadow-lg bg-purple-800/80 hover:bg-purple-700/80 border border-purple-600/50"
               >
-                {isRecording ? (
-                  <MicOff className="h-6 w-6" />
-                ) : (
-                  <Mic className="h-6 w-6" />
-                )}
+                <motion.div
+                  animate={{ rotate: inputMode === "text" ? 180 : 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {inputMode === "voice" ? (
+                    <Type className="h-5 w-5 text-purple-200" />
+                  ) : (
+                    <Mic className="h-5 w-5 text-purple-200" />
+                  )}
+                </motion.div>
+              </Button>
+            </motion.div>
+
+            {/* Main Action FAB */}
+            {inputMode === "voice" && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                className="fixed bottom-6 right-6 z-50"
+              >
+                <Button
+                  onClick={isRecording ? stopRecording : startRecording}
+                  size="icon"
+                  disabled={isProcessingText}
+                  className={`w-14 h-14 rounded-full shadow-lg ${
+                    isRecording
+                      ? "bg-gradient-to-r from-red-600 to-red-700"
+                      : "bg-gradient-to-r from-purple-600 to-blue-600"
+                  }`}
+                >
+                  <motion.div
+                    animate={
+                      isRecording
+                        ? { scale: [1, 1.2, 1] }
+                        : { scale: [1, 1.05, 1] }
+                    }
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    {isRecording ? (
+                      <MicOff className="h-6 w-6" />
+                    ) : (
+                      <Mic className="h-6 w-6" />
+                    )}
+                  </motion.div>
+                </Button>
               </motion.div>
-            </Button>
-          </motion.div>
+            )}
+          </>
         )}
       </AnimatePresence>
+
+      {/* Privacy Settings Button */}
+      <motion.div
+        className="fixed top-4 right-4 z-40"
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 1 }}
+      >
+        <Button
+          onClick={resetConsent}
+          size="sm"
+          variant="ghost"
+          className="bg-purple-900/60 backdrop-blur-sm border border-purple-600/30 text-purple-200 hover:bg-purple-800/60"
+          title="Privacy Settings"
+        >
+          <Shield className="h-4 w-4 mr-2" />
+          {!isMobile && "Privacy"}
+        </Button>
+      </motion.div>
+
+      {/* Consent Dialog */}
+      <ConsentDialog
+        isOpen={showDialog}
+        onAccept={handleAccept}
+        onDecline={handleDecline}
+      />
+
+      {/* Consent Status Badge */}
+      {consentStatus !== "pending" && (
+        <motion.div
+          className="fixed top-4 left-4 z-40"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 1.5 }}
+        >
+          <Badge
+            variant={consentStatus === "accepted" ? "default" : "secondary"}
+            className={`${
+              consentStatus === "accepted"
+                ? "bg-green-800/60 text-green-200 border-green-600/30"
+                : "bg-amber-800/60 text-amber-200 border-amber-600/30"
+            } backdrop-blur-sm`}
+          >
+            {consentStatus === "accepted" ? "Voice Enabled" : "Text Only"}
+          </Badge>
+        </motion.div>
+      )}
     </div>
   );
 }
