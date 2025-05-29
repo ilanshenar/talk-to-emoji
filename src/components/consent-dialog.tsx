@@ -18,16 +18,6 @@ export default function ConsentDialog({
   onAccept,
   onDecline,
 }: ConsentDialogProps) {
-  useEffect(() => {
-    // Check if user has already given consent
-    const consent = localStorage.getItem("mojimajic-consent");
-    if (consent === "accepted") {
-      onAccept();
-    } else if (consent === "declined") {
-      onDecline();
-    }
-  }, [onAccept, onDecline]);
-
   const handleAccept = () => {
     localStorage.setItem("mojimajic-consent", "accepted");
     onAccept();
@@ -64,7 +54,7 @@ export default function ConsentDialog({
                 </div>
               </div>
               <CardTitle className="text-2xl font-bold text-purple-100">
-                Privacy & Data Consent
+                Voice Recording Permission
               </CardTitle>
               <Badge
                 variant="secondary"
@@ -77,8 +67,8 @@ export default function ConsentDialog({
             <CardContent className="space-y-6">
               <div className="text-purple-200 space-y-4">
                 <p className="text-center">
-                  Welcome to Mojimajic! Before you start converting speech to
-                  emojis, please understand how we handle your data.
+                  To use voice recording, Mojimajic needs access to your
+                  microphone and will process your audio using AI services.
                 </p>
 
                 <div className="grid md:grid-cols-2 gap-4">
@@ -90,10 +80,10 @@ export default function ConsentDialog({
                       </h4>
                     </div>
                     <ul className="text-sm space-y-1 text-purple-300">
-                      <li>• Processed by OpenAI&apos;s Whisper API</li>
-                      <li>• Never permanently stored</li>
+                      <li>• Temporarily processed for speech recognition</li>
+                      <li>• Never permanently stored on our servers</li>
                       <li>• Deleted immediately after processing</li>
-                      <li>• Used only for speech-to-text conversion</li>
+                      <li>• Only collected with your explicit consent</li>
                     </ul>
                   </div>
 
@@ -101,14 +91,14 @@ export default function ConsentDialog({
                     <div className="flex items-center mb-2">
                       <Eye className="h-5 w-5 text-purple-400 mr-2" />
                       <h4 className="font-semibold text-purple-100">
-                        Text Data
+                        Text Processing
                       </h4>
                     </div>
                     <ul className="text-sm space-y-1 text-purple-300">
-                      <li>• Processed by OpenAI&apos;s GPT-4o-mini</li>
+                      <li>• AI processes text for emoji conversion</li>
                       <li>• Stored only in your browser session</li>
                       <li>• Cleared when you close the browser</li>
-                      <li>• Used only for emoji conversion</li>
+                      <li>• Used only for generating emoji responses</li>
                     </ul>
                   </div>
                 </div>
@@ -157,12 +147,12 @@ export default function ConsentDialog({
                   onClick={handleAccept}
                   className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                 >
-                  Accept & Enable Voice
+                  Allow Voice Recording
                 </Button>
               </div>
 
               <p className="text-xs text-purple-400 text-center">
-                By clicking &quot;Accept & Enable Voice&quot;, you consent to
+                By clicking &quot;Allow Voice Recording&quot;, you consent to
                 our data practices as described in our Privacy Policy.
               </p>
             </CardContent>
@@ -186,9 +176,8 @@ export function useConsent() {
       setConsentStatus("accepted");
     } else if (consent === "declined") {
       setConsentStatus("declined");
-    } else {
-      setShowDialog(true);
     }
+    // Note: No longer auto-showing dialog on mount
   }, []);
 
   const handleAccept = () => {
@@ -207,11 +196,19 @@ export function useConsent() {
     setShowDialog(true);
   };
 
+  const requestConsent = () => {
+    if (consentStatus === "pending") {
+      setShowDialog(true);
+    }
+    return consentStatus;
+  };
+
   return {
     consentStatus,
     showDialog,
     handleAccept,
     handleDecline,
     resetConsent,
+    requestConsent,
   };
 }

@@ -84,8 +84,10 @@ export const metadata: Metadata = {
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "default",
-    "theme-color": "#3b82f6",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "theme-color": "#8b5cf6",
+    "msapplication-TileColor": "#8b5cf6",
+    "format-detection": "telephone=no",
   },
 };
 
@@ -99,7 +101,25 @@ export default function RootLayout({
       <head>
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"
+          content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, viewport-fit=cover"
+        />
+        <meta name="format-detection" content="telephone=no, email=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
+        <meta name="apple-mobile-web-app-title" content="Mojimajic" />
+        <meta
+          name="theme-color"
+          content="#8b5cf6"
+          media="(prefers-color-scheme: light)"
+        />
+        <meta
+          name="theme-color"
+          content="#3b82f6"
+          media="(prefers-color-scheme: dark)"
         />
         <link rel="canonical" href="https://mojimajic.com" />
         <script
@@ -141,20 +161,24 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} antialiased`}>
         {children}
         <Toaster
           theme="dark"
           className="toaster group"
+          position="top-center"
+          expand={false}
+          richColors={true}
           toastOptions={{
+            duration: 3000,
             classNames: {
               toast:
-                "group toast group-[.toaster]:bg-purple-800/90 group-[.toaster]:text-purple-100 group-[.toaster]:border-purple-600/50 group-[.toaster]:shadow-lg",
+                "group toast group-[.toaster]:bg-purple-800/95 group-[.toaster]:backdrop-blur-lg group-[.toaster]:text-purple-100 group-[.toaster]:border-purple-600/50 group-[.toaster]:shadow-2xl group-[.toaster]:rounded-xl",
               description: "group-[.toast]:text-purple-300",
               actionButton:
-                "group-[.toast]:bg-purple-600 group-[.toast]:text-purple-100",
+                "group-[.toast]:bg-purple-600 group-[.toast]:text-purple-100 group-[.toast]:hover:bg-purple-700",
               cancelButton:
-                "group-[.toast]:bg-slate-600 group-[.toast]:text-slate-100",
+                "group-[.toast]:bg-slate-600 group-[.toast]:text-slate-100 group-[.toast]:hover:bg-slate-700",
             },
           }}
         />

@@ -38,6 +38,7 @@ export default function SpeechToEmoji() {
   const [inputMode, setInputMode] = useState<"voice" | "text">("text");
   const [textInput, setTextInput] = useState("");
   const [isProcessingText, setIsProcessingText] = useState(false);
+  const [pendingRecording, setPendingRecording] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -47,10 +48,53 @@ export default function SpeechToEmoji() {
   const {
     consentStatus,
     showDialog,
-    handleAccept,
-    handleDecline,
+    handleAccept: originalHandleAccept,
+    handleDecline: originalHandleDecline,
     resetConsent,
+    requestConsent,
   } = useConsent();
+
+  // Function to handle switching to voice mode
+  const switchToVoiceMode = () => {
+    if (consentStatus === "pending") {
+      setPendingRecording(false); // We're not trying to record, just switching mode
+      requestConsent();
+      // Don't switch mode yet, wait for consent
+      return;
+    }
+
+    if (consentStatus === "accepted") {
+      setInputMode("voice");
+    } else if (consentStatus === "declined") {
+      toast.info(
+        "Voice recording requires permission. Please allow microphone access to use voice mode."
+      );
+      // Stay in text mode
+    }
+  };
+
+  // Wrapper for handle accept that switches to voice mode if that was the intent
+  const handleAccept = () => {
+    originalHandleAccept();
+    if (pendingRecording) {
+      setPendingRecording(false);
+      // Start recording after a short delay to allow state to update
+      setTimeout(() => {
+        startRecording();
+      }, 100);
+    } else {
+      // User was just trying to switch to voice mode
+      setInputMode("voice");
+    }
+  };
+
+  // Wrapper for handle decline
+  const handleDecline = () => {
+    originalHandleDecline();
+    setPendingRecording(false);
+    // Keep in text mode regardless of intent
+    setInputMode("text");
+  };
 
   // Default language since we removed the language selector
   const selectedLanguage = "en";
@@ -85,11 +129,13 @@ export default function SpeechToEmoji() {
     }
   }, [copiedIndex]);
 
-  // Handle consent change
+  // Handle consent change - but don't force text mode if declined
   useEffect(() => {
     if (consentStatus === "declined" && inputMode === "voice") {
       setInputMode("text");
-      toast.info("Voice recording disabled. You can still use text input!");
+      toast.info(
+        "Voice recording requires permission. Using text input instead!"
+      );
     }
   }, [consentStatus, inputMode]);
 
@@ -177,9 +223,17 @@ export default function SpeechToEmoji() {
   };
 
   const startRecording = async () => {
-    // Check consent before accessing microphone
+    // Check if consent is needed and request it
+    if (consentStatus === "pending") {
+      setPendingRecording(true);
+      requestConsent();
+      return;
+    }
+
+    // Check consent after potential dialog
     if (consentStatus !== "accepted") {
-      toast.error("Please accept privacy terms to use voice recording");
+      toast.error("Microphone access is required for voice recording");
+      setInputMode("text");
       return;
     }
 
@@ -270,7 +324,10 @@ export default function SpeechToEmoji() {
           isUser: false,
         },
       ]);
-      toast.error("Could not access microphone");
+      toast.error(
+        "Could not access microphone. Please check your browser permissions."
+      );
+      setInputMode("text");
     }
   };
 
@@ -302,9 +359,9 @@ export default function SpeechToEmoji() {
   };
 
   return (
-    <div className="flex flex-col items-center w-full gap-6">
+    <div className="flex flex-col items-center w-full gap-4 sm:gap-6">
       {/* Messages Container */}
-      <div className="space-y-4 w-full max-h-[70vh] overflow-y-auto px-2 pb-4 hide-scrollbar">
+      <div className="space-y-3 sm:space-y-4 w-full max-h-[60vh] sm:max-h-[65vh] md:max-h-[70vh] overflow-y-auto px-1 sm:px-2 pb-4 hide-scrollbar overscroll-y-none">
         <AnimatePresence mode="popLayout">
           {messages.map((message, index) => (
             <motion.div
@@ -317,31 +374,31 @@ export default function SpeechToEmoji() {
               transition={{ duration: 0.3 }}
             >
               <Card
-                className={`relative ${
+                className={`relative touch-manipulation ${
                   message.isUser
-                    ? "bg-purple-700/40 backdrop-blur-sm border-purple-600/50 ml-0 md:ml-8"
-                    : "bg-slate-700/40 backdrop-blur-sm border-slate-600/50 mr-0 md:mr-8"
+                    ? "bg-purple-700/40 backdrop-blur-sm border-purple-600/50 ml-0 sm:ml-4 md:ml-8"
+                    : "bg-slate-700/40 backdrop-blur-sm border-slate-600/50 mr-0 sm:mr-4 md:mr-8"
                 }`}
               >
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start">
+                <CardHeader className="pb-2 sm:pb-3">
+                  <div className="flex justify-between items-start gap-2">
                     {message.emojis && (
                       <motion.div
                         variants={emojiVariants}
                         initial="hidden"
                         animate="visible"
-                        className="text-4xl text-center flex-1"
+                        className="text-3xl sm:text-4xl text-center flex-1 py-1"
                       >
                         {message.emojis}
                       </motion.div>
                     )}
-                    <div className="flex gap-2 ml-auto">
+                    <div className="flex gap-1 sm:gap-2 ml-auto flex-shrink-0">
                       {message.emojis && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => copyEmojis(message.emojis!, index)}
-                          className="text-purple-300 hover:text-purple-100 h-8 w-8 p-0"
+                          className="text-purple-300 hover:text-purple-100 h-8 w-8 sm:h-9 sm:w-9 p-0 touch-target"
                         >
                           {copiedIndex === index ? (
                             <motion.div
@@ -352,7 +409,7 @@ export default function SpeechToEmoji() {
                               ✓
                             </motion.div>
                           ) : (
-                            <Copy className="h-4 w-4" />
+                            <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
                           )}
                         </Button>
                       )}
@@ -360,15 +417,15 @@ export default function SpeechToEmoji() {
                         variant="ghost"
                         size="sm"
                         onClick={() => removeMessage(index)}
-                        className="text-purple-300 hover:text-red-400 h-8 w-8 p-0"
+                        className="text-purple-300 hover:text-red-400 h-8 w-8 sm:h-9 sm:w-9 p-0 touch-target"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
 
-                <CardContent className="pt-0">
+                <CardContent className="pt-0 pb-3 sm:pb-4">
                   <AnimatePresence>
                     {message.isRevealed && (
                       <motion.div
@@ -376,9 +433,9 @@ export default function SpeechToEmoji() {
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="mb-3"
+                        className="mb-2 sm:mb-3"
                       >
-                        <p className="text-purple-100 text-sm">
+                        <p className="text-purple-100 text-sm sm:text-base leading-relaxed">
                           {message.text}
                         </p>
                       </motion.div>
@@ -389,23 +446,23 @@ export default function SpeechToEmoji() {
                     variant="ghost"
                     size="sm"
                     onClick={() => toggleReveal(index)}
-                    className="text-purple-300 hover:text-purple-100 h-auto p-2"
+                    className="text-purple-300 hover:text-purple-100 h-auto p-2 text-xs sm:text-sm touch-target"
                   >
                     {message.isRevealed ? (
                       <>
-                        <EyeOff className="h-4 w-4 mr-2" />
+                        <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                         Hide Text
                       </>
                     ) : (
                       <>
-                        <Eye className="h-4 w-4 mr-2" />
+                        <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                         Reveal Text
                       </>
                     )}
                   </Button>
 
                   {isMobile && (
-                    <p className="text-xs text-purple-400 mt-2 text-center">
+                    <p className="text-2xs sm:text-xs text-purple-400 mt-2 text-center">
                       Swipe left to delete • Swipe up to reveal/hide
                     </p>
                   )}
@@ -418,11 +475,11 @@ export default function SpeechToEmoji() {
       </div>
 
       {/* Status and Controls */}
-      <div className="flex flex-col items-center gap-4 w-full px-2 sticky bottom-0 pt-2">
+      <div className="flex flex-col items-center gap-3 sm:gap-4 w-full px-1 sm:px-2 sticky bottom-0 pt-2 pb-safe">
         {status && (
           <Badge
             variant="secondary"
-            className="text-purple-300 bg-purple-800/40"
+            className="text-purple-300 bg-purple-800/40 text-xs sm:text-sm px-2 py-1"
           >
             Status: {status}
           </Badge>
@@ -430,17 +487,17 @@ export default function SpeechToEmoji() {
 
         {status === "processing" && (
           <motion.div
-            className="flex space-x-2 mb-2"
+            className="flex space-x-1 sm:space-x-2 mb-2"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
             {["🤔", "🎤", "🎧", "🎯", "🎨"].map((emoji, index) => (
               <motion.div
                 key={index}
-                className="text-3xl md:text-4xl"
+                className="text-2xl sm:text-3xl md:text-4xl"
                 animate={{
-                  y: [0, -10, 0],
-                  rotate: [0, 5, -5, 0],
+                  y: [0, -8, 0],
+                  rotate: [0, 4, -4, 0],
                 }}
                 transition={{
                   duration: 1,
@@ -456,33 +513,33 @@ export default function SpeechToEmoji() {
         )}
 
         {/* Mode Switcher */}
-        <Card className="w-full max-w-md bg-purple-800/30 backdrop-blur-sm border-purple-600/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-center gap-2 mb-4">
+        <Card className="w-full max-w-lg bg-purple-800/30 backdrop-blur-sm border-purple-600/50">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-center gap-1 sm:gap-2 mb-3 sm:mb-4">
               <Button
                 variant={inputMode === "voice" ? "default" : "ghost"}
                 size="sm"
-                onClick={() => setInputMode("voice")}
-                className={`${
+                onClick={switchToVoiceMode}
+                className={`flex-1 min-h-touch-target text-xs sm:text-sm ${
                   inputMode === "voice"
                     ? "bg-purple-600 hover:bg-purple-700"
                     : "text-purple-300 hover:text-purple-100"
                 }`}
               >
-                <Mic className="h-4 w-4 mr-2" />
+                <Mic className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 Voice
               </Button>
               <Button
                 variant={inputMode === "text" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setInputMode("text")}
-                className={`${
+                className={`flex-1 min-h-touch-target text-xs sm:text-sm ${
                   inputMode === "text"
                     ? "bg-purple-600 hover:bg-purple-700"
                     : "text-purple-300 hover:text-purple-100"
                 }`}
               >
-                <Type className="h-4 w-4 mr-2" />
+                <Type className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 Text
               </Button>
             </div>
@@ -501,11 +558,11 @@ export default function SpeechToEmoji() {
                     onClick={isRecording ? stopRecording : startRecording}
                     size="lg"
                     disabled={isProcessingText}
-                    className={`px-8 py-4 text-lg font-semibold ${
+                    className={`px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-lg font-semibold min-h-touch-target ${
                       isRecording
                         ? "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
                         : "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    } shadow-lg transition-all`}
+                    } shadow-lg transition-all touch-manipulation`}
                   >
                     <motion.div
                       animate={isRecording ? { scale: [1, 1.1, 1] } : {}}
@@ -513,12 +570,17 @@ export default function SpeechToEmoji() {
                       className="mr-2"
                     >
                       {isRecording ? (
-                        <MicOff className="h-5 w-5" />
+                        <MicOff className="h-4 w-4 sm:h-5 sm:w-5" />
                       ) : (
-                        <Mic className="h-5 w-5" />
+                        <Mic className="h-4 w-4 sm:h-5 sm:w-5" />
                       )}
                     </motion.div>
-                    {isRecording ? "Stop Recording" : "Start Recording"}
+                    <span className="hidden xs:inline">
+                      {isRecording ? "Stop Recording" : "Start Recording"}
+                    </span>
+                    <span className="inline xs:hidden">
+                      {isRecording ? "Stop" : "Record"}
+                    </span>
                   </Button>
                 </motion.div>
               ) : (
@@ -537,8 +599,8 @@ export default function SpeechToEmoji() {
                         onKeyDown={handleKeyPress}
                         placeholder="Type your message here..."
                         disabled={isProcessingText || isRecording}
-                        className="w-full p-3 pr-12 rounded-lg bg-purple-900/40 border border-purple-600/50 text-purple-100 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                        rows={3}
+                        className="w-full p-3 pr-10 sm:pr-12 rounded-lg bg-purple-900/40 border border-purple-600/50 text-purple-100 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm sm:text-base min-h-touch-target"
+                        rows={isMobile ? 2 : 3}
                       />
                       {textInput && (
                         <Button
@@ -546,9 +608,9 @@ export default function SpeechToEmoji() {
                           variant="ghost"
                           size="sm"
                           onClick={() => setTextInput("")}
-                          className="absolute top-2 right-2 text-purple-400 hover:text-purple-200 h-8 w-8 p-0"
+                          className="absolute top-2 right-2 text-purple-400 hover:text-purple-200 h-6 w-6 sm:h-8 sm:w-8 p-0 touch-target"
                         >
-                          <RotateCcw className="h-4 w-4" />
+                          <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
                       )}
                     </div>
@@ -558,7 +620,7 @@ export default function SpeechToEmoji() {
                       disabled={
                         !textInput.trim() || isProcessingText || isRecording
                       }
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg transition-all"
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg transition-all min-h-touch-target text-sm sm:text-base touch-manipulation"
                     >
                       {isProcessingText ? (
                         <motion.div
@@ -570,15 +632,22 @@ export default function SpeechToEmoji() {
                           }}
                           className="mr-2"
                         >
-                          <RotateCcw className="h-5 w-5" />
+                          <RotateCcw className="h-4 w-4 sm:h-5 sm:w-5" />
                         </motion.div>
                       ) : (
-                        <Send className="h-5 w-5 mr-2" />
+                        <Send className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                       )}
-                      {isProcessingText ? "Converting..." : "Convert to Emojis"}
+                      <span className="hidden sm:inline">
+                        {isProcessingText
+                          ? "Converting..."
+                          : "Convert to Emojis"}
+                      </span>
+                      <span className="inline sm:hidden">
+                        {isProcessingText ? "Converting..." : "Convert"}
+                      </span>
                     </Button>
                   </form>
-                  <p className="text-xs text-purple-400 mt-2 text-center">
+                  <p className="text-2xs sm:text-xs text-purple-400 mt-2 text-center">
                     Press Enter to convert • Shift+Enter for new line
                   </p>
                 </motion.div>
@@ -597,15 +666,17 @@ export default function SpeechToEmoji() {
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
-              className="fixed bottom-6 left-6 z-50"
+              className="fixed bottom-20 left-4 z-50"
             >
               <Button
                 onClick={() =>
-                  setInputMode(inputMode === "voice" ? "text" : "voice")
+                  inputMode === "voice"
+                    ? setInputMode("text")
+                    : switchToVoiceMode()
                 }
                 size="icon"
                 variant="secondary"
-                className="w-12 h-12 rounded-full shadow-lg bg-purple-800/80 hover:bg-purple-700/80 border border-purple-600/50"
+                className="w-12 h-12 rounded-full shadow-xl bg-purple-800/90 hover:bg-purple-700/90 border border-purple-600/50 backdrop-blur-sm touch-manipulation"
               >
                 <motion.div
                   animate={{ rotate: inputMode === "text" ? 180 : 0 }}
@@ -626,13 +697,13 @@ export default function SpeechToEmoji() {
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
-                className="fixed bottom-6 right-6 z-50"
+                className="fixed bottom-20 right-4 z-50"
               >
                 <Button
                   onClick={isRecording ? stopRecording : startRecording}
                   size="icon"
                   disabled={isProcessingText}
-                  className={`w-14 h-14 rounded-full shadow-lg ${
+                  className={`w-16 h-16 rounded-full shadow-xl touch-manipulation ${
                     isRecording
                       ? "bg-gradient-to-r from-red-600 to-red-700"
                       : "bg-gradient-to-r from-purple-600 to-blue-600"
@@ -670,11 +741,11 @@ export default function SpeechToEmoji() {
           onClick={resetConsent}
           size="sm"
           variant="ghost"
-          className="bg-purple-900/60 backdrop-blur-sm border border-purple-600/30 text-purple-200 hover:bg-purple-800/60"
+          className="bg-purple-900/60 backdrop-blur-sm border border-purple-600/30 text-purple-200 hover:bg-purple-800/60 touch-manipulation min-h-touch-target"
           title="Privacy Settings"
         >
-          <Shield className="h-4 w-4 mr-2" />
-          {!isMobile && "Privacy"}
+          <Shield className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+          <span className="hidden sm:inline">Privacy</span>
         </Button>
       </motion.div>
 

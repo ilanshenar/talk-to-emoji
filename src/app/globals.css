@@ -81,38 +81,85 @@
 html {
   height: -webkit-fill-available;
   font-size: var(--font-size-base);
+  /* Prevent zoom on iOS when focusing inputs */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   min-height: 100vh;
   min-height: -webkit-fill-available;
+  /* Prevent bouncing on iOS */
   overscroll-behavior-y: none;
+  /* Support safe areas for notched devices */
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Enable hardware acceleration */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  /* Smooth scrolling for the whole page */
+  scroll-behavior: smooth;
 }
 
 /* Improve touch targets for mobile */
 button, 
 select, 
-input {
+input,
+textarea,
+[role="button"] {
   touch-action: manipulation;
+  /* Prevent iOS from adding default tap highlighting */
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Increase touch target sizes on mobile */
+/* Increase touch target sizes on mobile and improve readability */
 @media (max-width: 768px) {
+  :root {
+    --font-size-base: 17px; /* Optimal for iOS readability */
+  }
+
   button, 
   select, 
   input,
-  a {
-    min-height: 44px;
+  textarea,
+  a[role="button"],
+  [role="button"] {
+    min-height: 44px; /* Apple's recommended minimum touch target */
     min-width: 44px;
   }
 
+  /* Improve text readability on mobile */
   .text-sm {
-    font-size: 0.925rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
   }
 
+  .text-xs {
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+
+  /* Better spacing for mobile cards */
+  .card {
+    margin-bottom: 1rem;
+  }
+
+  /* Improve input focus styles on mobile */
+  input:focus,
+  textarea:focus {
+    transform: scale(1.02);
+    transition: transform 0.15s ease;
+  }
+}
+
+/* Extra small devices optimizations */
+@media (max-width: 390px) {
   :root {
-    --font-size-base: 18px;
+    --font-size-base: 16px;
+  }
+
+  .text-3xl {
+    font-size: 1.75rem;
+    line-height: 1.2;
   }
 }
 
@@ -126,9 +173,61 @@ input {
   display: none; /* Chrome, Safari and Opera */
 }
 
-/* Add smooth scrolling */
+/* Smooth scrolling for all elements */
 * {
   scroll-behavior: smooth;
+}
+
+/* Improve performance on mobile by enabling hardware acceleration */
+.motion-safe {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Better focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid theme('colors.purple.400');
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Custom webkit scrollbar for desktop */
+@media (min-width: 769px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.3);
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 92, 246, 0.5);
+  }
+}
+
+/* Fix viewport height issues on mobile browsers */
+.min-h-screen {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
+
+/* Improve card animations on mobile */
+@media (max-width: 768px) {
+  .hover\:scale-105:hover {
+    transform: scale(1.02) !important;
+  }
+  
+  .hover\:scale-102:hover {
+    transform: scale(1.01) !important;
+  }
 }
 
 .dark {
